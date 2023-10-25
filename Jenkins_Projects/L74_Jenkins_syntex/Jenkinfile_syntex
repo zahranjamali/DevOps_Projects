@@ -1,0 +1,75 @@
+def gv
+
+pipeline {
+    agent any
+    tools {
+        maven 'Maven'
+        gradel
+        jdk
+    }
+    environment {
+        NEW_VERSION = '1.2.1'
+        SERVER_CREDENTIALS = credentials('server-credentials') // credentials and credentials binding plugins are required for creating credential and for using it in pipeline resp.
+    }
+    parameters {
+        choice(name: 'VERSION', choices: ['1.1.0', '1.1.1', '1.1.2'])
+        booleanParam(name: 'executeTests', defaultValue: true, description: '')
+    }
+    stages {
+         stage('init'){
+            steps {
+                gv == load "script.groovy"
+            }
+        }
+        stage('Build'){
+            when {
+                expression {
+                    BRANCH_NAME == 'dev' || BRANCH_NAME == 'master'   //check the environmental variable at url/env-vars.html
+                }
+            }
+            steps {
+                script {
+                    gv.buildApp()
+                }
+            }
+        }
+        stage('Test'){
+            when {
+                expression {
+                    params.executeTests == True
+                }
+            }
+            steps {
+                 script {
+                    gv.testApp()
+                }
+            }
+        }
+        stage('Deploy'){
+            input {
+                    message "please select the environment"
+                    ok "done"
+                    parameters {
+                        choice(name: 'ENV', choices: ['dev', 'prod', 'stage'], description: '')
+                    }
+                }
+            steps {
+                 script {
+                    echo "deploying to ${ENV}"
+                    gv.deployApp()
+                }
+            }
+        }
+        post {
+            always {
+                //
+            }
+            success {
+                //
+            }
+            failure {
+                //
+            }
+        }
+    }
+}
